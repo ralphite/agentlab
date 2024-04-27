@@ -1,12 +1,14 @@
 import { defineStore } from "pinia";
+import { AsyncStatus, getDefaultFetchState } from "@/utils/fetch";
+
+export const models = ["llama3:latest", "llama3:70b-instruct", "phi3:latest"];
 
 export const useChatStore = defineStore("chat", {
   state: () => ({
-    model: "llama3" as string,
+    model: "llama3:latest" as string,
     messages: [] as ChatMessage[],
     input: "" as string,
-    loading: false as boolean,
-    errorMessage: "" as string,
+    sendMessageFetchState: getDefaultFetchState<ChatMessage>(),
   }),
   getters: {
     chatRequestPayload(): OllamaChatRequestPayload {
@@ -18,13 +20,11 @@ export const useChatStore = defineStore("chat", {
     },
   },
   actions: {
-    async generate() {
+    async sendMessage() {
       if (!this.input) {
         return;
       }
       try {
-        this.loading = true;
-        this.errorMessage = "";
         this.messages.push({
           ollama_message: {
             content: this.input,
@@ -33,6 +33,11 @@ export const useChatStore = defineStore("chat", {
           created_at: new Date().toISOString(),
         });
         this.input = "";
+
+        this.sendMessageFetchState = {
+          ...getDefaultFetchState<ChatMessage>(),
+          status: AsyncStatus.LOADING,
+        };
 
         const response = await fetch("http://localhost:11434/api/chat", {
           method: "POST",
@@ -44,26 +49,26 @@ export const useChatStore = defineStore("chat", {
 
         if (response.ok) {
           const data = await response.json();
-          console.log(data);
 
-          this.messages.push({
+          this.sendMessageFetchState.status = AsyncStatus.SUCCESS;
+          this.sendMessageFetchState.data = {
             ollama_message: data["message"],
             created_at: data["created_at"],
-          });
+          };
+
+          this.messages.push(this.sendMessageFetchState.data);
         } else {
           // Handle the API error
           const error = await response.text();
-          console.error(error);
-          this.errorMessage = error;
+          this.sendMessageFetchState.status = AsyncStatus.ERROR;
+          this.sendMessageFetchState.error = error;
         }
       } catch (error) {
         // Handle network or other errors
-        console.error(error);
-        this.errorMessage = "Network error or other error";
+        this.sendMessageFetchState.status = AsyncStatus.ERROR;
+        this.sendMessageFetchState.error = "Network error or other error";
       } finally {
-        this.loading = false;
-
-        if (this.errorMessage) {
+        if (this.sendMessageFetchState.status === AsyncStatus.ERROR) {
           this.input = this.messages.pop()?.ollama_message.content || "";
         }
       }

@@ -1,14 +1,20 @@
-import '../index.css'
+import "../index.css";
 
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createApp } from "vue";
+import { createPinia } from "pinia";
 
-import App from './App.vue'
-import router from './router'
+import { OhVueIcon, addIcons } from "oh-vue-icons";
+import { FaRobot, FaUser } from "oh-vue-icons/icons";
+addIcons(FaUser, FaRobot);
 
-const app = createApp(App)
+import App from "./App.vue";
+import router from "./router";
 
-app.use(createPinia())
-app.use(router)
+const app = createApp(App);
 
-app.mount('#app')
+app.use(createPinia());
+app.use(router);
+
+app.component("v-icon", OhVueIcon);
+
+app.mount("#app");
